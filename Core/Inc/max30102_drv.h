@@ -34,7 +34,7 @@
 #define PART_ID 0xFF
 
 /*Interrupt status 1 bits*/
-#define A_FULL  (1<<7)
+#define A_FULL  (1<<7)  //
 #define PPG_RFY (1<<6)
 #define ALC_OVF (1<<5)
 #define PWR_RDY (1<<0)
@@ -60,6 +60,21 @@
 #define SMP_AVE_8 0x60
 #define SMP_AVE_16 0x80
 #define SMP_AVE_32 0xA0
+#define FIFO_ROLLOVER_EN 0x10
+#define FIFO_A_FULL_MAX 0x0F
+
+/*Mode configuration bits*/
+#define SHDN 0x80
+#define RESET 0x40
+#define HR_MODE 0x02
+#define SPO2_MODE 0x03
+#define MULTILED_MODE 0x0
+
+/*SPO2 configuration bits*/
+#define SPO2_RANGE_1 0x00
+#define SPO2_RANGE_2 0x20
+#define SPO2_RANGE_3 0x40
+#define SPO2_RANGE_4 0x60
 
 
 #endif /* INC_MAX30102_DRV_H_ */
