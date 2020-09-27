@@ -1,0 +1,6 @@
+max30102_dpv.c:11:19:po_read_reg	40	static
+max30102_dpv.c:23:19:po_write_reg	32	static
+max30102_dpv.c:35:19:po_init	32	static
+max30102_dpv.c:57:19:po_get_temperature	24	static
+max30102_dpv.c:76:19:po_print_reg	24	static
+max30102_dpv.c:151:19:po_print_dump	24	static

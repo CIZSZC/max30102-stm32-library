@@ -22,7 +22,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "max30102_drv.h"
+#include "utils.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -32,6 +33,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -45,7 +47,7 @@ I2C_HandleTypeDef hi2c1;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-
+MAX30102_HandleTypeDef hpo = {0};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -54,7 +56,6 @@ static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
-
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -69,7 +70,6 @@ static void MX_USART1_UART_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -93,22 +93,73 @@ int main(void)
   MX_I2C1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-  HAL_UART_Transmit(&huart1, "Max30102\r\n", 11 , HAL_MAX_DELAY);
-  uint8_t partId = 0;
-  uint8_t data = 0xFF;
-  HAL_I2C_Master_Transmit(&hi2c1, 0xAE, &data, 1, HAL_MAX_DELAY);
-  HAL_I2C_Master_Receive(&hi2c1, 0xAE, &partId, 1, HAL_MAX_DELAY);
-  char buff[100] = {0};
-  sprintf(buff, "Part id %d\r\n", partId);
-  HAL_UART_Transmit(&huart1, buff, sizeof(buff) , HAL_MAX_DELAY);
+//  printf(CLEAR_TERMINAL TEXT_COLOR_DEFAULT);
+
+//  hpo.fifoConfig = SMP_AVE_32|FIFO_ROLLOVER_DIS|FIFO_A_FULL_MAX;
+  hpo.modeConfig = HR_MODE;
+  hpo.ledPulseAmplIr = 0x0F;
+  hpo.ledPulseAmplRed = 0x0F;
+  hpo.modeConfig = HR_MODE;
+  hpo.fifoConfig = FIFO_ROLLOVER_EN;
+  hpo.address = MAX30102_I2C_ADDRESS;
+  hpo.hi2c = &hi2c1;
+  po_init(&hpo);
+  po_write_reg(&hpo, A_FULL_EN|PPG_RDY_EN, INT_ENABLE_1_REG);
+//  po_write_reg(&hpo, DIE_TEMP_RDY_EN, INT_ENABLE_2_REG);
+
+    uint8_t readBuff = 0;
+//    po_read_reg(&hpo, &readBuff, INT_STATUS_1_REG);
+//    printf("INT_STATUS_1_REG: %d\r\n", readBuff);
+//
+//    po_read_reg(&hpo, &readBuff, INT_STATUS_2_REG);
+//    printf("INT_STATUS_2_REG: %d\r\n", readBuff);
+
+//  po_write_reg(&hpo, RESET, MODE_CONFIG_REG);
+
+//    po_write_reg(&hpo, 0xc0, INT_ENABLE_1_REG);
+//    po_write_reg(&hpo, 0x00, INT_ENABLE_2_REG);
+//    po_write_reg(&hpo, 0x00, FIFO_WR_PTR_REG);
+//    po_write_reg(&hpo, 0x00, OVF_COUNTER_REG);
+//    po_write_reg(&hpo, 0x00, FIFO_RD_PTR_REG);
+//    po_write_reg(&hpo, 0x00, FIFO_CONFIG_REG);
+//    po_write_reg(&hpo, 0x07, SPO2_CONFIG_REG);
+//    po_write_reg(&hpo, 0x24, LED_PULSE_AMPLITUDE_IR_REG);
+//    po_write_reg(&hpo, 0x24, LED_PULSE_AMPLITUDE_RED_REG);
+//    po_write_reg(&hpo, 0x03, MODE_CONFIG_REG);
+
+//    po_print_reg(&hpo, MODE_CONFIG_REG);
+    printf(CLEAR_TERMINAL TEXT_COLOR_DEFAULT);
+    printf("Start\r\n");
+    po_write_reg(&hpo, 0x00, FIFO_WR_PTR_REG);
+    po_write_reg(&hpo, 0x00, FIFO_RD_PTR_REG);
+    po_write_reg(&hpo, 0x00, OVF_COUNTER_REG);
+//    po_print_dump(&hpo);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+      uint8_t intStatus = 0;
+      po_read_reg(&hpo, &intStatus, INT_STATUS_1_REG);
+//      if((intStatus & A_FULL) != 0){
+          uint8_t readBuff[3] = {0};
+          po_write_reg(&hpo, 0x00, FIFO_RD_PTR_REG);    //read from 0
+          uint8_t data = FIFO_DATA_REG;
+          HAL_I2C_Master_Transmit(&hi2c1, hpo.address, &data, 1, HAL_MAX_DELAY);
+//          for(uint8_t i = 0; i < 32; i++){
+              uint32_t result = 0;
+              po_print_reg(&hpo, FIFO_RD_PTR_REG);
+              HAL_I2C_Master_Receive(&hi2c1, hpo.address, readBuff, 3, HAL_MAX_DELAY);
+              result |= (uint32_t)(readBuff[0]<<16);
+              result |= (uint32_t)(readBuff[1]<<8);
+              result |= (uint32_t)(readBuff[1]);
+              printf("%ld\r\n", result);
+              HAL_Delay(50);
+//          }
+//          po_print_dump(&hpo);
+//      }
     /* USER CODE END WHILE */
-
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -231,7 +282,47 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+#if defined(__GNUC__)
+int _write(int fd, char * ptr, int len)
+{
+  HAL_UART_Transmit(&huart1, (uint8_t *) ptr, len, HAL_MAX_DELAY);
+  return len;
+}
+#elif defined (__ICCARM__)
+#include "LowLevelIOInterface.h"
+size_t __write(int handle, const unsigned char * buffer, size_t size)
+{
+  HAL_UART_Transmit(&huart1, (uint8_t *) buffer, size, HAL_MAX_DELAY);
+  return size;
+}
+#elif defined (__CC_ARM)
+int fputc(int ch, FILE *f)
+{
+    HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
+    return ch;
+}
+#endif
 
+// OR:
+
+// Add syscalls.c with GCC
+
+#ifdef __GNUC__
+#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+#else
+#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+#endif /* __GNUC__ */
+
+/**
+  * @brief  Retargets the C library printf function to the USART.
+  * @param  None
+  * @retval None
+  */
+PUTCHAR_PROTOTYPE
+{
+  HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
+  return ch;
+}
 /* USER CODE END 4 */
 
 /**
